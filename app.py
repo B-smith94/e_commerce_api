@@ -1,7 +1,8 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
-from marshmallow import fields, ValidationError
+from marshmallow import fields, validate
+from marshmallow import ValidationError
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:Umbr3lla4850@localhost/e_commerce_db'
@@ -48,13 +49,23 @@ accounts_schema = CustomerAccountSchema(many=True)
 
 class ProductSchema(ma.Schema):
     id = fields.Integer()
-    name = fields.String(required=True)
-    price = fields.Float(requried=True)
+    name = fields.String(required=True, vaildate=validate.Length(min=1))
+    price = fields.Float(requried=True, validate=validate.Range(min=0))
     class Meta:
         fields = ("id", "name", "price")
 
 product_schema = ProductSchema()
 products_schema = ProductSchema(many=True)
+
+class OrderSchema(ma.Schema):
+    id = fields.Integer()
+    date = fields.String()
+    customer_id = fields.Integer()
+    expected_delivery = fields.Date()
+    products = fields.List(fields.Nested(products_schema))
+    class Meta:
+        fields = ("id", "date", "customer_id", "expected_delivery", "products")
+    
 
 class Customer(db.Model):
     __tablename__ = "Customers"
@@ -63,12 +74,6 @@ class Customer(db.Model):
     email = db.Column(db.String(320))
     phone = db.Column(db.String(15))
     order = db.relationship('Order', backref = 'customer')
-
-class Order(db.Model):
-    __tablename__ = "Orders"
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, nullable=False)
-    customer_id = db.Column(db.Integer, db.ForeignKey("Customers.id"))
 
 class CustomerAccount(db.Model):
     __tablename__ = "customer_accounts"
@@ -82,12 +87,19 @@ order_product = db.Table('Order_Product',
         db.Column('order_id', db.Integer, db.ForeignKey('Orders.id'), primary_key=True),
         db.Column('product_id', db.Integer, db.ForeignKey('Products.id'), primary_key=True))
 
+class Order(db.Model):
+    __tablename__ = "Orders"
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey("Customers.id"))
+    expected_delivery = db.Column(db.Date)
+    products = db.relationship('Product', secondary=order_product, backref=db.backref('orders'))
+
 class Product(db.Model):
     __tablename__ = 'Products'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     price = db.Column(db.Float, nullable=False)
-    orders = db.relationship('Order', secondary=order_product, backref=db.backref('products'))
 
 #Customer Routes
 @app.route('/customers', methods=['GET'])
@@ -186,8 +198,7 @@ def get_all_products():
 
 @app.route("/products/<int:id>", methods=["GET"])
 def search_product(id):
-    Product.query.get_or_404(id)
-    product = Product.query.get(id)
+    product = Product.query.get_or_404(id)
     return product_schema.jsonify(product)
 
 @app.route("/products", methods=["POST"])
@@ -220,7 +231,35 @@ def delete_product(id):
     product = Product.query.get_or_404(id)
     db.session.delete(product)
     db.session.commit()
-    return jsonify({"message":"Customer account removed successfully"}), 200
+    return jsonify({"message":"Product removed successfully"}), 200
+
+@app.route("/orders", methods=["POST"])
+def create_order():
+    try:
+        order_data = order_schema.load(request.json)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
+    
+    new_order = Order(order_date=order_data['order_date'], customer_id=order_data['customer_id'], expected_delivery=order_data['expected_delivery'])
+    product_query = select(Product).where(Product.id==order_data['product_id'])
+    product_result = db.session.execute(product_query).scalars.first()
+
+    new_order.products.append(product_result)
+
+@app.route("/orders", methods=["GET"])
+def get_all_orders():
+    orders = Order.query.all()
+    return orders_schema.jsonify(orders)
+
+@app.route("/orders/<int:id>", methods=["GET"])
+def search_order(id):
+    order = Order.query.get_or_404(id)
+    return order_schema.jsonify(order)
+
+@app.route("/orders/<int:id>", methods=["GET"])
+def order_dates(id):
+    order = Order.query.get_or_404(id)
+    return order_schema.jsonify(order['order_date'], order['expected_delivery']) 
 
 with app.app_context():
     db.create_all()
