@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
-from marshmallow import fields, validate
+from marshmallow import fields
 from marshmallow import ValidationError
 
 app = Flask(__name__)
@@ -49,8 +49,8 @@ accounts_schema = CustomerAccountSchema(many=True)
 
 class ProductSchema(ma.Schema):
     id = fields.Integer()
-    name = fields.String(required=True, vaildate=validate.Length(min=1))
-    price = fields.Float(requried=True, validate=validate.Range(min=0))
+    name = fields.String(required=True)
+    price = fields.Float(requried=True)
     class Meta:
         fields = ("id", "name", "price")
 
@@ -59,10 +59,10 @@ products_schema = ProductSchema(many=True)
 
 class OrderSchema(ma.Schema):
     id = fields.Integer()
-    date = fields.String()
+    date = fields.Date()
     customer_id = fields.Integer()
-    expected_delivery = fields.Date()
-    products = fields.List(fields.Nested(products_schema))
+    expected_delivery_date = fields.Date()
+    products = fields.List(fields.Nested(product_schema))
     class Meta:
         fields = ("id", "date", "customer_id", "expected_delivery", "products")
     
@@ -92,7 +92,7 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False)
     customer_id = db.Column(db.Integer, db.ForeignKey("Customers.id"))
-    expected_delivery = db.Column(db.Date)
+    expected_delivery_date = db.Column(db.Date)
     products = db.relationship('Product', secondary=order_product, backref=db.backref('orders'))
 
 class Product(db.Model):
@@ -240,11 +240,26 @@ def create_order():
     except ValidationError as err:
         return jsonify(err.messages), 400
     
-    new_order = Order(order_date=order_data['order_date'], customer_id=order_data['customer_id'], expected_delivery=order_data['expected_delivery'])
-    product_query = select(Product).where(Product.id==order_data['product_id'])
-    product_result = db.session.execute(product_query).scalars.first()
+    new_order = Order(date=order_data['date'], customer_id=order_data['customer_id'])
+    db.session.add(new_order)
+    db.session.commit()
 
-    new_order.products.append(product_result)
+    return jsonify({"message": "Order Created Successfully"}), 201
+
+@app.route("/orders/<int:id>", methods=["PUT"])
+def update_order(id):
+    order = Order.query.get_or_404(id)
+    try:
+        order_data = order_schema.load(request.json)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
+    
+    order.date = order_data['date']
+    order.customer_id = order_data['customer_id']
+    order.expected_delivery_date = order_data['expected_delivery_date']
+    order.products = order_data['products'].append(Product.id)
+    db.session.commit()
+    return jsonify({"message": "Product details updated successfully"})
 
 @app.route("/orders", methods=["GET"])
 def get_all_orders():
