@@ -145,7 +145,7 @@ def get_all_accounts():
 
 @app.route("/customer_accounts/<int:id>", methods=["GET"])
 def get_customer_account(id):
-    CustomerAccount.query.get_or_404(id)
+    CustomerAccount.query.one_or_404(id)
     customer_account = CustomerAccount.query.get(id)
     return account_schema.jsonify(customer_account)
 
@@ -230,12 +230,10 @@ def create_order():
         order_data = order_schema.load(request.json)
     except ValidationError as err:
         return jsonify(err.messages), 400
-    
-    
     new_order = Order(date=order_data['date'], customer_id=order_data['customer_id'], expected_delivery_date=order_data['expected_delivery_date'])
-    product_query=db.session.execute(db.select(Product).where(Product.id==order_product['product_id'])).scalars()
-    new_order.products.append(product_query)
-
+    product_query = db.select(Product.id).where(Product.name == order_data['products'])
+    product_result = db.session.execute(product_query)
+    new_order.products.append(product_result)
     db.session.add(new_order)
     db.session.commit()
 
