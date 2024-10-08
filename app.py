@@ -25,28 +25,6 @@ class CustomerSchema(ma.Schema):
 customer_schema = CustomerSchema()
 customers_schema = CustomerSchema(many=True)
 
-class OrderSchema(ma.Schema):
-    id = fields.Integer()
-    date = fields.Date()
-    customer_id = fields.Integer(required=True)
-
-    class Meta:
-        fields = ("id", "date", "customer_id")
-
-order_schema = OrderSchema()
-orders_schema = OrderSchema(many=True)
-
-class CustomerAccountSchema(ma.Schema):
-    id = fields.Integer()
-    username = fields.String(required=True)
-    password = fields.String(required=True)
-    customer_id = fields.Integer()
-    class Meta:
-        fields = ("id", "username", "password", "customer_id")
-
-account_schema = CustomerAccountSchema()
-accounts_schema = CustomerAccountSchema(many=True)
-
 class ProductSchema(ma.Schema):
     id = fields.Integer()
     name = fields.String(required=True)
@@ -61,11 +39,24 @@ class OrderSchema(ma.Schema):
     id = fields.Integer()
     date = fields.Date()
     customer_id = fields.Integer()
-    expected_delivery_date = fields.Date()
+    expected_delivery_date = fields.String()
     products = fields.List(fields.Nested(product_schema))
     class Meta:
-        fields = ("id", "date", "customer_id", "expected_delivery", "products")
-    
+        fields = ("id", "date", "customer_id", "expected_delivery_date", "products")
+
+order_schema = OrderSchema()
+orders_schema = OrderSchema(many=True)
+
+class CustomerAccountSchema(ma.Schema):
+    id = fields.Integer()
+    username = fields.String(required=True)
+    password = fields.String(required=True)
+    customer_id = fields.Integer()
+    class Meta:
+        fields = ("id", "username", "password", "customer_id")
+
+account_schema = CustomerAccountSchema()
+accounts_schema = CustomerAccountSchema(many=True)
 
 class Customer(db.Model):
     __tablename__ = "Customers"
@@ -92,7 +83,7 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False)
     customer_id = db.Column(db.Integer, db.ForeignKey("Customers.id"))
-    expected_delivery_date = db.Column(db.Date)
+    expected_delivery_date = db.Column(db.String(255))
     products = db.relationship('Product', secondary=order_product, backref=db.backref('orders'))
 
 class Product(db.Model):
@@ -239,6 +230,7 @@ def create_order():
         order_data = order_schema.load(request.json)
     except ValidationError as err:
         return jsonify(err.messages), 400
+    
     
     new_order = Order(date=order_data['date'], customer_id=order_data['customer_id'], expected_delivery_date=order_data['expected_delivery_date'])
     product_query=db.session.execute(db.select(Product).where(Product.id==order_product['product_id'])).scalars()
