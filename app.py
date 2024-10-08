@@ -83,7 +83,7 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False)
     customer_id = db.Column(db.Integer, db.ForeignKey("Customers.id"))
-    expected_delivery_date = db.Column(db.String(255))
+    expected_delivery_date = db.Column(db.Date)
     products = db.relationship('Product', secondary=order_product, backref=db.backref('orders'))
 
 class Product(db.Model):
@@ -227,13 +227,15 @@ def delete_product(id):
 @app.route("/orders", methods=["POST"])
 def create_order():
     try:
-        order_data = order_schema.load(request.json)
+        order_data = request.json
     except ValidationError as err:
         return jsonify(err.messages), 400
+    
+    print(order_data)
     new_order = Order(date=order_data['date'], customer_id=order_data['customer_id'], expected_delivery_date=order_data['expected_delivery_date'])
-    product_query = db.select(Product.id).where(Product.name == order_data['products'])
-    product_result = db.session.execute(product_query)
-    new_order.products.append(product_result)
+    product_query = Product.query.get_or_404(order_data['product_id'])
+    new_order.products.append(product_query)
+
     db.session.add(new_order)
     db.session.commit()
 
@@ -250,7 +252,6 @@ def update_order(id):
     order.date = order_data['date']
     order.customer_id = order_data['customer_id']
     order.expected_delivery_date = order_data['expected_delivery_date']
-    order.products = order_data['products'].append(Product.id)
     db.session.commit()
     return jsonify({"message": "Product details updated successfully"})
 
@@ -263,11 +264,6 @@ def get_all_orders():
 def search_order(id):
     order = Order.query.get_or_404(id)
     return order_schema.jsonify(order)
-
-@app.route("/orders/<int:id>", methods=["GET"])
-def order_dates(id):
-    order = Order.query.get_or_404(id)
-    return order_schema.jsonify(order['order_date'], order['expected_delivery']) 
 
 with app.app_context():
     db.create_all()
