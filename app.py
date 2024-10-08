@@ -240,7 +240,10 @@ def create_order():
     except ValidationError as err:
         return jsonify(err.messages), 400
     
-    new_order = Order(date=order_data['date'], customer_id=order_data['customer_id'], expected_delivery_date=order_data['expected_delivery_date'], products=order_data.products.append(Product.id))
+    new_order = Order(date=order_data['date'], customer_id=order_data['customer_id'], expected_delivery_date=order_data['expected_delivery_date'])
+    product_query=db.session.execute(db.select(Product).where(Product.id==order_product['product_id'])).scalars()
+    new_order.products.append(product_query)
+
     db.session.add(new_order)
     db.session.commit()
 
