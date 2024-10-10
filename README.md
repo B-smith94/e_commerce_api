@@ -28,7 +28,7 @@ This applciation is for an e-commerce API and it features a variety of routes in
 Clone the project
 
 ```bash
-  git clone github/e_commerce_api
+  git clone https://github.com/B-smith94/e_commerce_api.git
 ```
 
 Go to the project directory
