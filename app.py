@@ -267,6 +267,13 @@ def search_order(id):
     order = Order.query.get_or_404(id)
     return order_schema.jsonify(order)
 
+@app.route("/orders/<int:id>", methods=["DELETE"])
+def cancel_order(id):
+    order = Order.query.get_or_404(id)
+    db.session.delete(order)
+    db.session.commit()
+    return jsonify({"message": "Order removed successfully"}), 200
+
 with app.app_context():
     db.create_all()
 
