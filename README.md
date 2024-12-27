@@ -22,6 +22,7 @@ This applciation is for an e-commerce API and it features a variety of routes in
 - Viewing all created Orders.
 - Searching for a specific Order, to view details like what Products were orderd, when the Customer ordered them, When the expected delivery date is, and the unique identifier of the Customer who ordered them.
 - Updating information about an order, including the Date the order was placed, the unique identifier of the Customer who placed the order, and the expected delivery date.
+- Canceling an order.
 ```
 ## Run Locally
 
