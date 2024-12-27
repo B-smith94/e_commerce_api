@@ -6,7 +6,7 @@ from marshmallow import ValidationError
 from flask_cors import CORS
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:Umbr3lla505@localhost/e_commerce_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:Umbr3lla4850@localhost/e_commerce_db'
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 CORS(app)
